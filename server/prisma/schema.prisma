@@ -1,0 +1,158 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  role         String          @default("GUARDIAN") // GUARDIAN | ELDER
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  elderProfile ElderProfile?   @relation("UserElderProfile")
+  guardianships GuardianElder[] @relation("GuardianUser")
+  activityLogs ActivityLog[]   @relation("UserActivityLogs")
+}
+
+model ElderProfile {
+  id                String          @id @default(uuid())
+  userId            String?         @unique
+  user              User?           @relation("UserElderProfile", fields: [userId], references: [id], onDelete: SetNull)
+  name              String
+  age               Int
+  gender            String?
+  medicalHistory    String?
+  preferredLanguage String          @default("English")
+  primaryGuardianId String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  guardians         GuardianElder[] @relation("ElderGuardians")
+  checkIns          CheckIn[]
+  medicines         Medicine[]
+  prescriptions     Prescription[]
+  alerts            Alert[]
+  sosEvents         SOS[]
+  activityLogs      ActivityLog[]   @relation("ElderActivityLogs")
+}
+
+model GuardianElder {
+  id           String       @id @default(uuid())
+  guardianId   String
+  elderId      String
+  relationship String       @default("Family Member")
+  createdAt    DateTime     @default(now())
+
+  guardian     User         @relation("GuardianUser", fields: [guardianId], references: [id], onDelete: Cascade)
+  elder        ElderProfile @relation("ElderGuardians", fields: [elderId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, elderId])
+}
+
+model CheckIn {
+  id                String        @id @default(uuid())
+  elderId           String
+  status            String        @default("NORMAL") // NORMAL | ATTENTION | URGENT
+  concernLevel      String        @default("NORMAL") // NORMAL | ATTENTION | URGENT
+  response          String?       // Combined conversation answers text
+  extractedKeywords String?       // Comma-separated detected terms e.g. "dizzy, headache"
+  notes             String?
+  mood              String?
+  timestamp         DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+
+  elder             ElderProfile  @relation(fields: [elderId], references: [id], onDelete: Cascade)
+}
+
+model Medicine {
+  id           String        @id @default(uuid())
+  elderId      String
+  name         String
+  dosage       String
+  scheduleTime String
+  frequency    String        @default("Daily")
+  instructions String?
+  active       Boolean       @default(true)
+  source       String        @default("MANUAL") // OCR | MANUAL
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  elder        ElderProfile  @relation(fields: [elderId], references: [id], onDelete: Cascade)
+  logs         MedicineLog[]
+}
+
+model MedicineLog {
+  id             String            @id @default(uuid())
+  medicineId     String
+  scheduledFor   DateTime          @default(now())
+  status         String            @default("PENDING") // PENDING | ACKNOWLEDGED | MISSED
+  acknowledgedAt DateTime?
+  notes          String?
+  createdAt      DateTime          @default(now())
+
+  medicine       Medicine          @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+}
+
+model Prescription {
+  id          String       @id @default(uuid())
+  elderId     String
+  doctorName  String
+  notes       String?
+  documentUrl String?
+  validUntil  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  elder       ElderProfile @relation(fields: [elderId], references: [id], onDelete: Cascade)
+}
+
+model Alert {
+  id         String        @id @default(uuid())
+  elderId    String
+  type       String        @default("HEALTH_CONCERN") // HEALTH_CONCERN | CHECKIN_MISSED | MEDICINE_MISSED | SOS
+  severity   String        @default("LOW") // LOW | MEDIUM | HIGH | CRITICAL
+  title      String
+  message    String
+  status     String        @default("UNREAD") // UNREAD | READ | RESOLVED
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  elder      ElderProfile  @relation(fields: [elderId], references: [id], onDelete: Cascade)
+}
+
+model SOS {
+  id                  String    @id @default(uuid())
+  elderId             String
+  status              String    @default("TRIGGERED") // TRIGGERED | ACKNOWLEDGED | RESOLVED
+  latitude            Float?
+  longitude           Float?
+  address             String?
+  locationUnavailable Boolean   @default(false)
+  triggeredAt         DateTime  @default(now())
+  resolvedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  elder       ElderProfile @relation(fields: [elderId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id         String        @id @default(uuid())
+  elderId    String?
+  userId     String?
+  action     String
+  details    String?
+  timestamp  DateTime      @default(now())
+  createdAt  DateTime      @default(now())
+
+  elder      ElderProfile? @relation("ElderActivityLogs", fields: [elderId], references: [id], onDelete: SetNull)
+  user       User?         @relation("UserActivityLogs", fields: [userId], references: [id], onDelete: SetNull)
+}
