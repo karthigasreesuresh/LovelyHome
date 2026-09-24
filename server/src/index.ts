@@ -19,7 +19,27 @@ import { authenticate } from './middleware/auth.middleware';
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  process.env.CLIENT_URL,
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Health Check
@@ -43,9 +63,10 @@ app.get('/api/medicine-logs/:elderId', authenticate, getMedicineLogsByElderId);
 // Error Handler Middleware
 app.use(errorHandler);
 
-const PORT = config.port;
+const PORT = Number(config.port) || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 LovelyHome Server running on http://localhost:${PORT}`);
-  console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 LovelyHome Server running on port ${PORT}`);
+  console.log(`📡 API Base URL: http://0.0.0.0:${PORT}/api`);
 });
+
