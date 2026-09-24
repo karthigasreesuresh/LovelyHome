@@ -13,6 +13,7 @@ client/.env
 # SQLite databases & journals
 *.db
 *.db-journal
+*.bak
 server/prisma/dev.db
 server/prisma/dev.db-journal
 
